@@ -7,10 +7,12 @@
 #include <memory>
 #include <pthread.h>
 #include <mpi.h>
+#include <fstream>
 
 
 const int n=64;
 const int subBlockSize=n/4;
+bool finishedTranspose=false;
 typedef struct BlockStruct {
    // std::vector<std::vector<int> >  blockVec;
    int blockVec[subBlockSize];
@@ -50,6 +52,67 @@ void transpose(int original[subBlockSize]){
 
 }
 
+void writeToFIle(std::vector<BlockStruct> vectorOfBlocks, std::string filename){
+
+	std::ofstream outfile;
+	outfile.open(filename);
+	outfile<<n;
+	outfile<<"\n";
+	
+	if (!finishedTranspose){
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=0;k<2;k++){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+			
+		}
+		outfile<<"\n";
+	}
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=2;k<4;k++){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+		}
+		outfile<<"\n";
+	}
+}
+else {
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=0;k<3;k+=2){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+			
+		}
+		outfile<<"\n";
+	}
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=1;k<4;k+=2){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+		}
+		outfile<<"\n";
+	}
+
+
+
+}
+
+outfile.close();
+
+}
+
 
 
 
@@ -60,10 +123,7 @@ int main(int argc, char *argv[]){
     MPI_Init(&argc, &argv); 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
     MPI_Comm_size(MPI_COMM_WORLD, &size); 
-    int test[16];
-    for (int i=0;i<16;i++){
-    	test[i]=1;
-    }
+
      std::vector<BlockStruct> vectorOfBlocks;
             for (int i = 0; i < 4; i++)
             {
@@ -76,6 +136,19 @@ int main(int argc, char *argv[]){
     				// }
                 vectorOfBlocks[i].block = i;
             }
+ for (int i =0;i<4;i++){
+ 	for (int j=0;j<16;j++){
+
+ 		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
+
+ 	}
+
+ 	std::cout<<std::endl;
+ }
+
+ std::cout<<"--------------------"<<std::endl;
+
+  writeToFIle(vectorOfBlocks,"input.txt");
 
 // int          rank;
     struct { int a; double b;} value;
@@ -135,6 +208,8 @@ if (rank==0){
     MPI_Send( &vectorOfBlocks[2], 1, mystruct, 1,13, MPI_COMM_WORLD );
     transpose(vectorOfBlocks[3].blockVec);
     MPI_Recv(&vectorOfBlocks[2],   1, mystruct, 1, 13, MPI_COMM_WORLD, &status);
+    finishedTranspose=true;
+    writeToFIle(vectorOfBlocks,"output.txt");
 
 // std::cout<<"here"<<std::endl;
 //  for (int i =0;i<16;i++){
@@ -153,35 +228,35 @@ if (rank==0){
 }
 else {
 
-	std::cout<<"Yes"<<std::endl;
+	// std::cout<<"Yes"<<std::endl;
 	BlockStruct recv;
 	
 
 
     MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
-    for (int i =0;i<16;i++){
- // 	// for (int j=0;j<4;j++){
- 		std::cout<<recv.blockVec[i]<<" ";
+ //    for (int i =0;i<16;i++){
+ // // 	// for (int j=0;j<4;j++){
+ // 		std::cout<<recv.blockVec[i]<<" ";
 
- // 	// }
+ // // 	// }
  	
 
- }
+ // }
  std::cout<<std::endl;
     transpose(recv.blockVec);
 
 
 
 
-std::cout<<"---------------------"<<std::endl;
-    for (int i =0;i<16;i++){
- // 	// for (int j=0;j<4;j++){
- 		std::cout<<recv.blockVec[i]<<" ";
+// std::cout<<"---------------------"<<std::endl;
+//     for (int i =0;i<16;i++){
+//  // 	// for (int j=0;j<4;j++){
+//  		std::cout<<recv.blockVec[i]<<" ";
 
- // 	// }
- 	// std::cout<<std::endl;
+//  // 	// }
+//  	// std::cout<<std::endl;
 
- }
+//  }
 std::cout<<std::endl;
  MPI_Send( &recv, 1, mystruct, 0,13, MPI_COMM_WORLD );
 
@@ -190,6 +265,9 @@ std::cout<<std::endl;
 
     transpose(recv.blockVec);
     MPI_Send( &recv, 1, mystruct, 0,13, MPI_COMM_WORLD );
+
+
+
     // std::cout<<recv.block<<" ";
 
  //    for (int i =0;i<16;i++){
