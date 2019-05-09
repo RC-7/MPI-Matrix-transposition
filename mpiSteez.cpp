@@ -8,35 +8,53 @@
 #include <pthread.h>
 #include <mpi.h>
 
+
+const int n=64;
+const int subBlockSize=n/4;
 typedef struct BlockStruct {
    // std::vector<std::vector<int> >  blockVec;
-   int blockVec[16];
+   int blockVec[subBlockSize];
    int block;
 } BlockStruct;
 
 
-std::vector<std::vector<int> > generateRandom2D(int n)
+void generateRandom1D(int original[subBlockSize])
 {
 
-    std::vector<std::vector<int> > randomMatrix(n, std::vector<int>(n, 0));
-
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < subBlockSize; i++)
     {
-        for (int j = 0; j < n; j++)
-        {
-            randomMatrix[i][j] = rand() % 21;
-        }
+
+            original[i]= rand() % 21;
     }
 
-    return randomMatrix;
+}
+
+void transpose(int original[subBlockSize]){
+
+	int transposed[subBlockSize];
+	int count=0;
+
+	for(int i=0;i<subBlockSize/4;i++){
+		for(int j=i;j<subBlockSize;j+=subBlockSize/4){
+			transposed[count]=original[j];
+			count++;
+
+		}
+
+	}
+
+	for (int i =0;i<subBlockSize;i++){
+		original[i]=transposed[i];
+	}
+
+
 }
 
 
 
 
-
 int main(int argc, char *argv[]){
-	int n=64;
+
 	srand(time(NULL));
 	int rank, size;
     MPI_Init(&argc, &argv); 
@@ -50,11 +68,12 @@ int main(int argc, char *argv[]){
             for (int i = 0; i < 4; i++)
             {
                 vectorOfBlocks.push_back(BlockStruct());
+                generateRandom1D(vectorOfBlocks[i].blockVec);
                 // vectorOfBlocks[i].blockVec = generateRandom2D(n/4);
                 // vectorOfBlocks[i].blockVec = test;
-                for (int j=0;j<16;j++){
-    				vectorOfBlocks[i].blockVec[j]=1;
-    				}
+        //         for (int j=0;j<16;j++){
+    				// vectorOfBlocks[i].blockVec[j]=i;
+    				// }
                 vectorOfBlocks[i].block = i;
             }
 
@@ -101,6 +120,7 @@ if (rank==0){
 
     
     MPI_Send( &vectorOfBlocks[0], 1, mystruct, 1,13, MPI_COMM_WORLD );
+    // MPI_Send( &vectorOfBlocks[2], 1, mystruct, 1,13, MPI_COMM_WORLD );
 
 // std::cout<<"here"<<std::endl;
 //  for (int i =0;i<16;i++){
@@ -123,18 +143,51 @@ else {
 	BlockStruct recv;
 	MPI_Status status;
 
-    MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
-    // std::cout<<recv.block<<" ";
 
+    MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
     for (int i =0;i<16;i++){
  // 	// for (int j=0;j<4;j++){
  		std::cout<<recv.blockVec[i]<<" ";
 
  // 	// }
- // 	std::cout<<std::endl;
-
+ 	
 
  }
+ std::cout<<std::endl;
+    transpose(recv.blockVec);
+
+std::cout<<"---------------------"<<std::endl;
+    for (int i =0;i<16;i++){
+ // 	// for (int j=0;j<4;j++){
+ 		std::cout<<recv.blockVec[i]<<" ";
+
+ // 	// }
+ 	// std::cout<<std::endl;
+
+ }
+std::cout<<std::endl;
+
+    // std::cout<<recv.block<<" ";
+
+ //    for (int i =0;i<16;i++){
+ // // 	// for (int j=0;j<4;j++){
+ // 		std::cout<<recv.blockVec[i]<<" ";
+
+ // // 	// }
+ // 	std::cout<<std::endl;
+
+ // }
+
+ // MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
+
+ // for (int i =0;i<16;i++){
+ // // 	// for (int j=0;j<4;j++){
+ // 		std::cout<<recv.blockVec[i]<<" ";
+
+ // // 	// }
+ // // 	std::cout<<std::endl;
+
+ // }
 
 }
  MPI_Finalize();
