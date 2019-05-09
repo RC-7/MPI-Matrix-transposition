@@ -52,8 +52,8 @@ int main(int argc, char *argv[]){
                 vectorOfBlocks.push_back(BlockStruct());
                 // vectorOfBlocks[i].blockVec = generateRandom2D(n/4);
                 // vectorOfBlocks[i].blockVec = test;
-                for (int i=0;i<16;i++){
-    				vectorOfBlocks[i].blockVec[i]=1;
+                for (int j=0;j<16;j++){
+    				vectorOfBlocks[i].blockVec[j]=1;
     				}
                 vectorOfBlocks[i].block = i;
             }
@@ -89,19 +89,25 @@ if (rank==0){
 
 	
 	
+// std::cout<<"here"<<std::endl;
+//  for (int i =0;i<16;i++){
+//  // 	for (int j=0;j<4;j++){
 
+//  		std::cout<<rank<<"Ranks "<<vectorOfBlocks[0].blockVec[i]<<" ";
+
+//  	}
 
 
 
     
     MPI_Send( &vectorOfBlocks[0], 1, mystruct, 1,13, MPI_COMM_WORLD );
 
+// std::cout<<"here"<<std::endl;
+//  for (int i =0;i<16;i++){
+//  // 	for (int j=0;j<4;j++){
+//  		std::cout<<vectorOfBlocks[0].blockVec[i]<<" ";
 
- // for (int i =0;i<4;i++){
- // 	for (int j=0;j<4;j++){
- // 		std::cout<<vectorOfBlocks[0].blockVec[i][j]<<" ";
-
- // 	}
+//  	}
  // 	std::cout<<std::endl;
 
 
@@ -118,7 +124,7 @@ else {
 	MPI_Status status;
 
     MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
-    std::cout<<recv.blockVec[0]<<" ";
+    // std::cout<<recv.block<<" ";
 
     for (int i =0;i<16;i++){
  // 	// for (int j=0;j<4;j++){
