@@ -54,7 +54,7 @@ void transpose(int original[subBlockSize]){
 
 
 int main(int argc, char *argv[]){
-
+	MPI_Status status;
 	srand(time(NULL));
 	int rank, size;
     MPI_Init(&argc, &argv); 
@@ -119,8 +119,22 @@ if (rank==0){
 
 
     
-    MPI_Send( &vectorOfBlocks[0], 1, mystruct, 1,13, MPI_COMM_WORLD );
-    // MPI_Send( &vectorOfBlocks[2], 1, mystruct, 1,13, MPI_COMM_WORLD );
+    MPI_Send( &vectorOfBlocks[1], 1, mystruct, 1,13, MPI_COMM_WORLD );
+    transpose(vectorOfBlocks[0].blockVec);
+
+    MPI_Recv(&vectorOfBlocks[1],   1, mystruct, 1, 13, MPI_COMM_WORLD, &status);
+        for (int i =0;i<16;i++){
+ // 	// for (int j=0;j<4;j++){
+ 		std::cout<<vectorOfBlocks[1].blockVec[i]<<" ";
+
+ // 	// }
+ 	// std::cout<<std::endl;
+
+ }
+ // std::cout<<std::endl;
+    MPI_Send( &vectorOfBlocks[2], 1, mystruct, 1,13, MPI_COMM_WORLD );
+    transpose(vectorOfBlocks[3].blockVec);
+    MPI_Recv(&vectorOfBlocks[2],   1, mystruct, 1, 13, MPI_COMM_WORLD, &status);
 
 // std::cout<<"here"<<std::endl;
 //  for (int i =0;i<16;i++){
@@ -141,7 +155,7 @@ else {
 
 	std::cout<<"Yes"<<std::endl;
 	BlockStruct recv;
-	MPI_Status status;
+	
 
 
     MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
@@ -156,6 +170,9 @@ else {
  std::cout<<std::endl;
     transpose(recv.blockVec);
 
+
+
+
 std::cout<<"---------------------"<<std::endl;
     for (int i =0;i<16;i++){
  // 	// for (int j=0;j<4;j++){
@@ -166,7 +183,13 @@ std::cout<<"---------------------"<<std::endl;
 
  }
 std::cout<<std::endl;
+ MPI_Send( &recv, 1, mystruct, 0,13, MPI_COMM_WORLD );
 
+
+    MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
+
+    transpose(recv.blockVec);
+    MPI_Send( &recv, 1, mystruct, 0,13, MPI_COMM_WORLD );
     // std::cout<<recv.block<<" ";
 
  //    for (int i =0;i<16;i++){
