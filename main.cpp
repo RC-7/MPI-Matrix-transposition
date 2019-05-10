@@ -1,243 +1,207 @@
+
+#include <iostream>
 #include <stdlib.h>
 #include <time.h>
 #include <vector>
 #include <stdio.h>
 #include <memory>
-#include <omp.h>
 #include <pthread.h>
-#include "diag.cpp"
-#include "block.cpp"
-#include "naive.cpp"
+#include <mpi.h>
+#include <fstream>
 
-#define THREAD_NUM 4
 
-std::vector<std::vector<int>> generateRandom2D(int n)
+const int n=256;
+const int subBlockSize=n/4;
+bool finishedTranspose=false;
+typedef struct BlockStruct {
+   int blockVec[subBlockSize];
+   int block;
+} BlockStruct;
+
+
+void generateRandom1D(int original[subBlockSize])
 {
 
-    std::vector<std::vector<int>> randomMatrix(n, std::vector<int>(n, 0));
-
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < subBlockSize; i++)
     {
-        for (int j = 0; j < n; j++)
-        {
-            randomMatrix[i][j] = rand() % 21;
-        }
+
+            original[i]= rand() % 21;
     }
 
-    return randomMatrix;
 }
 
-void print2D(std::vector<std::vector<int>> A)
-{
-    printf("\n");
-    for (auto &value : A)
-    {
+void transpose(int original[subBlockSize]){
 
-        for (auto &entry : value)
-        {
+	int transposed[subBlockSize];
+	int count=0;
 
-            printf("%d  \t", entry);
-        }
+	for(int i=0;i<subBlockSize/4;i++){
+		for(int j=i;j<subBlockSize;j+=subBlockSize/4){
+			transposed[count]=original[j];
+			count++;
 
-        printf("\n");
-    }
+		}
+
+	}
+
+	for (int i =0;i<subBlockSize;i++){
+		original[i]=transposed[i];
+	}
+
+
 }
 
-bool checkDimension(int aLength, int aWidth)
-{
-    if (aLength == aWidth)
-    {
-        return true;
-    }
+void writeToFIle(std::vector<BlockStruct> vectorOfBlocks, std::string filename){
 
-    return false;
+	std::ofstream outfile;
+	outfile.open(filename);
+	outfile<<n;
+	outfile<<"\n";
+	
+	if (!finishedTranspose){
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=0;k<2;k++){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+			
+		}
+
+	}
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=2;k<4;k++){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+		}
+
+	}
+}
+else {
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=0;k<3;k+=2){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+			
+		}
+
+	}
+		for (int i=0;i<subBlockSize/4;i++){
+			for (int k=1;k<4;k+=2){
+			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			{
+				outfile<<vectorOfBlocks[k].blockVec[j];
+				outfile<<" ";
+			}
+		}
+
+	}
+
+
+
 }
 
-int main()
-{
-    srand(time(NULL));
+outfile.close();
 
-    auto N = {128, 1024, 2048, 4096};
-
-    for (auto n : N)
-    {
-        auto matrix = generateRandom2D(n);
-        auto matrixPtr = &matrix;
-        printf("Initial Matrix \n");
-        // print2D(matrix);
-
-        if (checkDimension(matrix.size(), matrix[0].size()))
-        {
-            auto outputMatrix = matrix;
-
-            double begin, end, timeDiff;
-            printf("Transposition times for matrix of size %d \n", n);
-            printf("Naive Transpose without Threading \n");
-            begin = omp_get_wtime();
-            naiveTranspose(matrixPtr, &outputMatrix);
-            end = omp_get_wtime();
-            double naiveNoTime = end-begin;
-
-            printf("Diagonal Transpose without Threading \n");
-            begin = omp_get_wtime();
-            diagTranspose(matrixPtr);
-            end = omp_get_wtime();
-            double diagNoTime = end-begin;
-
-            printf("Block Transpose without Threading \n");
-            begin = omp_get_wtime();
-            int startX=0;
-            int startY=0;
-            elementBlockTranspose(matrixPtr, n, startX, startY);
-            allBlocksTranspose(matrixPtr, n);
-            end = omp_get_wtime();
-            double blockNoTime = end-begin;
+}
 
 
-            printf("Naive Transpose with PThreads \n");
-            pthread_t threads[THREAD_NUM];
-            begin = omp_get_wtime();
 
-            // setup threads
-            std::vector<threadStructInput> threadStructVec;
-            for (int i = 0; i < THREAD_NUM; i++)
+
+int main(int argc, char *argv[]){
+	MPI_Status status;
+	srand(time(NULL));
+	int rank, size;
+    MPI_Init(&argc, &argv); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    MPI_Comm_size(MPI_COMM_WORLD, &size); 
+
+     std::vector<BlockStruct> vectorOfBlocks;
+            for (int i = 0; i < 4; i++)
             {
-                threadStructVec.push_back(threadStructInput());
-                threadStructVec[i].matrixPtr = matrixPtr;
-                threadStructVec[i].outputPtr = &outputMatrix;
-                threadStructVec[i].numberThreads = THREAD_NUM;
-                threadStructVec[i].id = i;
-            }
+                vectorOfBlocks.push_back(BlockStruct());
+                generateRandom1D(vectorOfBlocks[i].blockVec);
 
-            // create threads and do diagonal transpose
-            for (int i = 0; i < THREAD_NUM; ++i)
-            {
-                pthread_create(&threads[i], NULL, pthreadDiagTranspose, &threadStructVec[i]);
-            }
-
-            // join all threads
-            for (int j = 0; j < THREAD_NUM; ++j)
-                pthread_join(threads[j], NULL);
-
-            end = omp_get_wtime();
-            double naivePTime = end-begin;
-
-            printf("Diagonal Transpose with PThreads \n");
-            begin = omp_get_wtime();
-            
-             // setup threads
-            std::vector<threadStruct> structVec;
-            for (int i = 0; i < THREAD_NUM; i++)
-            {
-                structVec.push_back(threadStruct());
-                structVec[i].matrixPtr = matrixPtr;
-                structVec[i].numberThreads = THREAD_NUM;
-                structVec[i].id = i;
-            }
-
-            // create threads and do diagonal transpose
-            for (int i = 0; i < THREAD_NUM; ++i)
-            {
-                pthread_create(&threads[i], NULL, pthreadDiagTranspose, &structVec[i]);
-            }
-
-            // join all threads
-            for (int j = 0; j < THREAD_NUM; ++j)
-                pthread_join(threads[j], NULL);
-
-            end = omp_get_wtime();
-            double diagPTime = end-begin;
-
-            printf("Block Transpose with PThreads \n");
-
-            // setup threads
-            std::vector<threadStructBlock> structVecBlock;
-            for (int i = 0; i < THREAD_NUM; i++)
-            {
-                structVecBlock.push_back(threadStructBlock());
-                structVecBlock[i].matrixPtr = matrixPtr;
-                structVecBlock[i].numberThreads = THREAD_NUM;
-                structVecBlock[i].id = i;
-                structVecBlock[i].subBlockSize=n/2;
-                structVecBlock[i].startX=0;
-                structVecBlock[i].startY=0;
+                vectorOfBlocks[i].block = i;
             }
 
 
-            for (int i=0;i<2;i++)//thread 0: 0 0; thread 1: 0 n/2
-            {
-                structVecBlock[i].startX=0;
-                structVecBlock[i].startY=i*n/2;
-            }
 
-            for (int i=2;i<4;i++)
-            {
-                structVecBlock[i].startX=n/2;
-                structVecBlock[i].startY=(i-2)*n/2;
-            }
-          
-            begin = omp_get_wtime();
-            //First Transposition
-            for (int i = 0; i < THREAD_NUM; ++i)
-            {
-                pthread_create(&threads[i], NULL, elementBlockTransposeThread, &structVecBlock[i]);
-            }
-           
-            for (int j = 0; j < THREAD_NUM; ++j)
-                pthread_join(threads[j], NULL);
-
-            for (int i = 0; i < THREAD_NUM; ++i)
-            {
-                pthread_create(&threads[i], NULL,lastTranspose, &structVecBlock[i]);
-            }
-
-            for (int j = 0; j < THREAD_NUM; ++j)
-                pthread_join(threads[j], NULL);
-            
-            end = omp_get_wtime();
-            double blockPTime = end-begin;
-            
-    
-            printf("Naive Transpose with OpenMP \n");
-            begin = omp_get_wtime();
-            ompNaiveTranspose(matrixPtr, &outputMatrix);
-            end = omp_get_wtime();
-            double naiveOTime = end-begin;
-
-            printf("Diagonal Transpose with OpenMP \n");
-            begin = omp_get_wtime();
-            ompDiagTranspose(matrixPtr);
-            end = omp_get_wtime();
-            double diagOTime = end-begin;
-
-            printf("Block Transpose with OpenMP \n");
-            startX=0;
-            startY=0;
-            begin = omp_get_wtime();
-            elementBlockTransposeOMP(matrixPtr,n, startX, startY);
-            allBlocksTransposeOMP(matrixPtr,n);
-            end = omp_get_wtime();
-            double blockOTime = end-begin;
+  writeToFIle(vectorOfBlocks,"input.txt");
 
 
-            
-            printf("\nNaive with no threading %f s\n", naiveNoTime);
-            printf("Diagonal with no threading %f s\n", diagNoTime);
-            printf("Block with no threading %f s\n", blockNoTime);
+    struct { int a; double b;} value;
+    MPI_Datatype mystruct;
+    int          blocklens[2];
+    MPI_Aint     indices[2];
+    MPI_Datatype old_types[2];
 
-            printf("\nNaive with pthreads %f s\n", naivePTime);
-            printf("Diagonal with pthreads %f s\n", diagPTime);
-            printf("Block with pthreads %f s\n", blockPTime);
 
-            printf("\nNaive with openMP %f s\n", naiveOTime);
-            printf("Diagonal with openMP %f s\n", diagOTime);
-            printf("Block with openMP %f s\n\n\n", blockOTime);
-        }
-        else
-        {
-            printf("Error: matrix needs to be square");
-        }
-    }
+    blocklens[0] = subBlockSize;
+    blocklens[1] = 1;
 
+    old_types[0] = MPI_INT;
+    old_types[1] = MPI_INT;
+
+    MPI_Address( &vectorOfBlocks[0].blockVec, &indices[0] );
+    MPI_Address( &vectorOfBlocks[0].block, &indices[1] );
+
+    indices[1] = indices[1] - indices[0];
+    indices[0] = 0;
+    MPI_Type_struct( 2, blocklens, indices, old_types, &mystruct );
+    MPI_Type_commit( &mystruct );
+
+if (rank==0){
+    double startTime = MPI_Wtime(); 
+    MPI_Send( &vectorOfBlocks[1], 1, mystruct, 1,13, MPI_COMM_WORLD );
+    transpose(vectorOfBlocks[0].blockVec);
+
+    MPI_Recv(&vectorOfBlocks[1],   1, mystruct, 1, 13, MPI_COMM_WORLD, &status);
+
+
+    MPI_Send( &vectorOfBlocks[2], 1, mystruct, 1,13, MPI_COMM_WORLD );
+    transpose(vectorOfBlocks[3].blockVec);
+    MPI_Recv(&vectorOfBlocks[2],   1, mystruct, 1, 13, MPI_COMM_WORLD, &status);
+    double endTime = MPI_Wtime(); 
+    finishedTranspose=true;
+    writeToFIle(vectorOfBlocks,"output.txt");
+    printf("Time elapsed %f\n", endTime-startTime);
+
+
+}
+else {
+
+
+	BlockStruct recv;
+	
+
+
+    MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
+
+
+    transpose(recv.blockVec);
+
+
+
+ MPI_Send( &recv, 1, mystruct, 0,13, MPI_COMM_WORLD );
+
+
+    MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
+
+    transpose(recv.blockVec);
+    MPI_Send( &recv, 1, mystruct, 0,13, MPI_COMM_WORLD );
+
+
+
+}
+ MPI_Finalize();
     return 0;
+
 }
