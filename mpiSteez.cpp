@@ -10,7 +10,7 @@
 #include <fstream>
 
 
-const int n=64;
+const int n=256;
 const int subBlockSize=n/4;
 bool finishedTranspose=false;
 typedef struct BlockStruct {
@@ -131,17 +131,8 @@ int main(int argc, char *argv[]){
 
                 vectorOfBlocks[i].block = i;
             }
- for (int i =0;i<4;i++){
- 	for (int j=0;j<16;j++){
 
- 		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
 
- 	}
-
- 	std::cout<<std::endl;
- }
-
- std::cout<<"--------------------"<<std::endl;
 
   writeToFIle(vectorOfBlocks,"input.txt");
 
@@ -153,7 +144,7 @@ int main(int argc, char *argv[]){
     MPI_Datatype old_types[2];
 
 
-    blocklens[0] = 16;
+    blocklens[0] = subBlockSize;
     blocklens[1] = 1;
 
     old_types[0] = MPI_INT;
@@ -168,26 +159,20 @@ int main(int argc, char *argv[]){
     MPI_Type_commit( &mystruct );
 
 if (rank==0){
-
-
-    
+    double startTime = MPI_Wtime(); 
     MPI_Send( &vectorOfBlocks[1], 1, mystruct, 1,13, MPI_COMM_WORLD );
     transpose(vectorOfBlocks[0].blockVec);
 
     MPI_Recv(&vectorOfBlocks[1],   1, mystruct, 1, 13, MPI_COMM_WORLD, &status);
-        for (int i =0;i<16;i++){
 
- 		std::cout<<vectorOfBlocks[1].blockVec[i]<<" ";
-
-
-
- }
 
     MPI_Send( &vectorOfBlocks[2], 1, mystruct, 1,13, MPI_COMM_WORLD );
     transpose(vectorOfBlocks[3].blockVec);
     MPI_Recv(&vectorOfBlocks[2],   1, mystruct, 1, 13, MPI_COMM_WORLD, &status);
+    double endTime = MPI_Wtime(); 
     finishedTranspose=true;
     writeToFIle(vectorOfBlocks,"output.txt");
+    printf("Time elapsed %f\n", endTime-startTime);
 
 
 }
@@ -200,11 +185,11 @@ else {
 
     MPI_Recv(&recv,   1, mystruct, 0, 13, MPI_COMM_WORLD, &status);
 
- std::cout<<std::endl;
+
     transpose(recv.blockVec);
 
 
-std::cout<<std::endl;
+
  MPI_Send( &recv, 1, mystruct, 0,13, MPI_COMM_WORLD );
 
 
