@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <mpi.h>
 #include <fstream>
+#include <cmath>
 
 
 const int n=256;
@@ -59,9 +60,9 @@ void writeToFIle(std::vector<BlockStruct> vectorOfBlocks, std::string filename){
 	outfile<<"\n";
 	
 	if (!finishedTranspose){
-		for (int i=0;i<subBlockSize/4;i++){
+		for (int i=0;i<sqrt(subBlockSize);i++){
 			for (int k=0;k<2;k++){
-			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			for (int j =i*sqrt(subBlockSize);j<i*sqrt(subBlockSize)+sqrt(subBlockSize);j++)
 			{
 				outfile<<vectorOfBlocks[k].blockVec[j];
 				outfile<<" ";
@@ -70,9 +71,9 @@ void writeToFIle(std::vector<BlockStruct> vectorOfBlocks, std::string filename){
 		}
 
 	}
-		for (int i=0;i<subBlockSize/4;i++){
+		for (int i=0;i<sqrt(subBlockSize);i++){
 			for (int k=2;k<4;k++){
-			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			for (int j =i*sqrt(subBlockSize);j<i*sqrt(subBlockSize)+sqrt(subBlockSize);j++)
 			{
 				outfile<<vectorOfBlocks[k].blockVec[j];
 				outfile<<" ";
@@ -82,9 +83,9 @@ void writeToFIle(std::vector<BlockStruct> vectorOfBlocks, std::string filename){
 	}
 }
 else {
-		for (int i=0;i<subBlockSize/4;i++){
+		for (int i=0;i<sqrt(subBlockSize);i++){
 			for (int k=0;k<3;k+=2){
-			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			for (int j =i*sqrt(subBlockSize);j<i*sqrt(subBlockSize)+sqrt(subBlockSize);j++)
 			{
 				outfile<<vectorOfBlocks[k].blockVec[j];
 				outfile<<" ";
@@ -93,9 +94,9 @@ else {
 		}
 
 	}
-		for (int i=0;i<subBlockSize/4;i++){
+		for (int i=0;i<sqrt(subBlockSize);i++){
 			for (int k=1;k<4;k+=2){
-			for (int j =i*subBlockSize/4;j<i*subBlockSize/4+subBlockSize/4;j++)
+			for (int j =i*sqrt(subBlockSize);j<i*sqrt(subBlockSize)+sqrt(subBlockSize);j++)
 			{
 				outfile<<vectorOfBlocks[k].blockVec[j];
 				outfile<<" ";
@@ -137,6 +138,7 @@ int main(int argc, char *argv[]){
   writeToFIle(vectorOfBlocks,"input.txt");
 
 
+
     struct { int a; double b;} value;
     MPI_Datatype mystruct;
     int          blocklens[2];
@@ -159,6 +161,13 @@ int main(int argc, char *argv[]){
     MPI_Type_commit( &mystruct );
 
 if (rank==0){
+	std::cout<<std::endl;
+    for (int i=0;i<4;i++){
+    	for (int j=0;j<subBlockSize;j++){
+    		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
+    	}
+    	std::cout<<std::endl;
+    }
     double startTime = MPI_Wtime(); 
     MPI_Send( &vectorOfBlocks[1], 1, mystruct, 1,13, MPI_COMM_WORLD );
     transpose(vectorOfBlocks[0].blockVec);
@@ -173,6 +182,13 @@ if (rank==0){
     finishedTranspose=true;
     writeToFIle(vectorOfBlocks,"output.txt");
     printf("Time elapsed %f\n", endTime-startTime);
+std::cout<<std::endl;
+    for (int i=0;i<4;i++){
+    	for (int j=0;j<subBlockSize;j++){
+    		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
+    	}
+    	std::cout<<std::endl;
+    }
 
 
 }
