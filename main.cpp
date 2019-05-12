@@ -11,7 +11,7 @@
 #include <cmath>
 
 
-const int n=256;
+const int n=64;
 const int subBlockSize=n/4;
 bool finishedTranspose=false;
 typedef struct BlockStruct {
@@ -161,13 +161,13 @@ int main(int argc, char *argv[]){
     MPI_Type_commit( &mystruct );
 
 if (rank==0){
-	std::cout<<std::endl;
-    for (int i=0;i<4;i++){
-    	for (int j=0;j<subBlockSize;j++){
-    		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
-    	}
-    	std::cout<<std::endl;
-    }
+	// std::cout<<std::endl;
+ //    for (int i=0;i<4;i++){
+ //    	for (int j=0;j<subBlockSize;j++){
+ //    		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
+ //    	}
+ //    	std::cout<<std::endl;
+ //    }
     double startTime = MPI_Wtime(); 
     MPI_Send( &vectorOfBlocks[1], 1, mystruct, 1,13, MPI_COMM_WORLD );
     transpose(vectorOfBlocks[0].blockVec);
@@ -182,13 +182,13 @@ if (rank==0){
     finishedTranspose=true;
     writeToFIle(vectorOfBlocks,"output.txt");
     printf("Time elapsed %f\n", endTime-startTime);
-std::cout<<std::endl;
-    for (int i=0;i<4;i++){
-    	for (int j=0;j<subBlockSize;j++){
-    		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
-    	}
-    	std::cout<<std::endl;
-    }
+// std::cout<<std::endl;
+//     for (int i=0;i<4;i++){
+//     	for (int j=0;j<subBlockSize;j++){
+//     		std::cout<<vectorOfBlocks[i].blockVec[j]<<" ";
+//     	}
+//     	std::cout<<std::endl;
+//     }
 
 
 }
